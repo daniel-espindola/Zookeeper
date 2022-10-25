@@ -1,11 +1,15 @@
 package zookeeper;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.sql.Timestamp;
+
 import com.google.gson.Gson;
 
 public class Client {
@@ -13,7 +17,8 @@ public class Client {
    private static int[] Porta_Servidor = new int[3];
    private static Socket s;
    private static Gson g = new Gson();
-
+   private static Map<String, String> map = new HashMap<String, String>();
+   
   /**
    *
    * @param sc O Scanner para ler do teclado
@@ -79,18 +84,26 @@ public class Client {
 		    
 		    switch(funcao) {
 		    	case "INICIALIZA":
-				    
+            Ip_Servidor[0] = "127.0.0.1";
+            Ip_Servidor[1] = "127.0.0.1";
+            Ip_Servidor[2] = "127.0.0.1";
+            Porta_Servidor[0] = 10097;
+            Porta_Servidor[1] = 10098;
+            Porta_Servidor[2] = 10099;
+				    //obtemDadosTeclado(sc);
 		    		break;
 
 		    	case "PUT":
-				    System.out.println("Funcionalidade PUT selecionada\nInsira a key e value a ser inserido:\n");
+				    System.out.println("Funcionalidade PUT selecionada\nInsira a key e value a ser inserido (key value):\n");
             key = sc.nextLine();
-            value = sc.nextLine();
+            value = key.split(" ")[1];
+            key = key.split(" ")[0];
             
             sendMsg = new Message();
             sendMsg.Tipo = "PUT";
-            sendMsg.Corpo = key+value;
-            enviaMensagem(sendMsg);
+            sendMsg.Key = key;
+            sendMsg.Value = value;
+            Message res = enviaMensagem(sendMsg);
             //RECEBE PUT_OK com um timestamp
 
 						break;
@@ -103,7 +116,8 @@ public class Client {
             // ENVIA o último timestamp que conhecemos do arquivo
             sendMsg = new Message();
             sendMsg.Tipo = "GET";
-            sendMsg.Corpo = key;
+            sendMsg.Key = key;
+            //sendMsg.ts = new Timestamp(System.currentTimeMillis());
             enviaMensagem(sendMsg);
 
 						break;

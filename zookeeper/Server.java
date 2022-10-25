@@ -1,6 +1,8 @@
 package zookeeper;
 
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -17,6 +19,7 @@ public class Server {
   private static int Porta_Lider;
   private static ServerSocket serverSocket;
   private static Gson g = new Gson();
+  private static Map<String, String> map = new HashMap<String, String>();
 
   public static class ThreadAtendimento extends Thread {
     private Socket s;
