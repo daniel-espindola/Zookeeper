@@ -1,6 +1,7 @@
 package zookeeper;
 
 import java.net.Socket;
+import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -20,6 +21,11 @@ public class Server {
   private static ServerSocket serverSocket;
   private static Gson g = new Gson();
   private static Map<String, String> map = new HashMap<String, String>();
+  private static Map<String, Timestamp> ts = new HashMap<String, Timestamp>();
+
+  public static boolean souLider() {
+    return Ip_Servidor.equals(Ip_Lider) && Porta_Servidor == Porta_Lider;
+  }
 
   public static class ThreadAtendimento extends Thread {
     private Socket s;
@@ -41,23 +47,85 @@ public class Server {
 
         String requestStr = reader.readLine();
         Message msg = new Gson().fromJson(requestStr, Message.class);
+        String sendData;
+        Message res;
 
         System.out.println("mensagem recebida");
+        
         switch(msg.Tipo) {
           case "PUT":
-            System.out.println("recebido uma requisição PUT " + msg.Corpo);
+            if(souLider()) {
+              System.out.println("Cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " PUT key:" + msg.Key
+                  + " value:" + msg.Value);
+            } else {
+              // TODO ENCAMINHAR O PUT
+              System.out.println("Encaminhando PUT key:" + msg.Key + " value:" + msg.Value);
+            }
+
+            if(map.containsKey(msg.Key) == false) {
+              map.put(msg.Key, msg.Value);
+              ts.put(msg.Key, new Timestamp(System.currentTimeMillis()));
+            } else {
+              map.replace(msg.Key, msg.Value);
+              ts.replace(msg.Key, new Timestamp(System.currentTimeMillis()));
+            }
+
+            // REPLICAR A INFORMAÇÃO EM OUTROS SERVIDORES, ENVIANDO REPLICATION, espera o replication ok de TODOS os servidores
+            res = new Message();
+            res.Tipo = "PUT_OK";
+            res.ts = ts.get(msg.Key);
+            
+            System.out.println(
+                "Enviando PUT_OK ao cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " da key:" + msg.Key
+                    + " ts:" + msg.ts);
+
+            sendData = g.toJson(res);
+            writer.writeBytes(sendData + "\n");
+
           break;
 
           case "REPLICATION":
-            System.out.println("recebido uma requisição REPLICATION " + msg.Corpo);
+            System.out.println("REPLICATION key:" + msg.Key + " value:" + msg.Value + " ts:"+msg.ts);
           break;
 
           case "GET":
-            System.out.println("recebido uma requisição GET " + msg.Corpo);
+          
+            System.out.println("1");
+            if(map.containsKey(msg.Key) == false) {
+              
+              System.out.println("2");
+              System.out
+                  .println("Cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " GET da key:" + msg.Key
+                      + " ts:" + msg.Value + ". Meu ts é null portanto devolvendo null");
+              sendData = g.toJson(null);
+              writer.writeBytes(sendData + "\n");
+              
+              break;
+            }
+
+            System.out.println("3");
+            if(msg.ts == null || ts.get(msg.Key).compareTo(msg.ts) > 0) {
+              msg.Value = map.get(msg.Key);
+              msg.ts = ts.get(msg.Key);
+              System.out
+                  .println("Cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " GET da key:" + msg.Key
+                      + " ts:" + msg.Value + ". Meu ts é " + ts.get(msg.Key) + ", portanto devolvendo " + msg.Value);
+            } else {
+              
+              System.out.println("5");
+              System.out
+                  .println("Cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " GET da key:" + msg.Key
+                      + " ts:" + msg.Value + ". Meu ts é " + ts.get(msg.Key) + ", portanto devolvendo TRY_OTHER_SERVER_OR_LATER");
+                      msg.Value = "TRY_OTHER_SERVER_OR_LATER";
+            }
+
+            sendData = g.toJson(msg);
+            System.out.println(sendData);
+            writer.writeBytes(sendData + "\n");
           break;
         }
 
-        writer.writeBytes("response");
+        writer.writeBytes("response" +"\n");
 
         s.close();
 

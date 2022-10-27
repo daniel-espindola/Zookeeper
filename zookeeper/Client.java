@@ -2,6 +2,7 @@ package zookeeper;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -15,9 +16,9 @@ import com.google.gson.Gson;
 public class Client {
    private static String[] Ip_Servidor = new String[3];
    private static int[] Porta_Servidor = new int[3];
-   private static Socket s;
    private static Gson g = new Gson();
    private static Map<String, String> map = new HashMap<String, String>();
+   private static Map<String, Timestamp> ts = new HashMap<String, Timestamp>();
    
   /**
    *
@@ -46,8 +47,10 @@ public class Client {
    * @param sc O Scanner para ler do teclado
    */
   public static Message enviaMensagem(Message msg){
-
+    Random rng = new Random(3141527);
+    int i = rng.nextInt(2);
     try {
+      Socket s = new Socket(Ip_Servidor[i], Porta_Servidor[i]);
       // Escreve pelo socket
       OutputStream os = s.getOutputStream();
       DataOutputStream writer = new DataOutputStream(os);
@@ -58,11 +61,9 @@ public class Client {
       
       String sendData = g.toJson(msg);
       writer.writeBytes(sendData + "\n");
-      System.out.println("mensagem enviada");
 
       String response = reader.readLine();
-      
-      System.out.println("Do Servidor: " + response);
+      s.close();
       return g.fromJson(response, Message.class);
 
     } catch (Exception e) {}
@@ -72,24 +73,24 @@ public class Client {
 
   public static void main(String[] args) throws Exception {
 	    Scanner sc = new Scanner(System.in);
-      s = new Socket("127.0.0.1", 9000);
       Message sendMsg;
       String key;
       String value;
+      Message res;
 
 	    while(true) {
 
-		    System.out.println("Selecione uma funcionalidade:\n - INICIALIZA\n - PUT\n - GET\n");
+		    System.out.println("Selecione uma funcionalidade:\nINIT\nPUT\nGET\n");
 		    String funcao = sc.nextLine().toUpperCase();
 		    
+        Ip_Servidor[0] = "127.0.0.1";
+        Ip_Servidor[1] = "127.0.0.1";
+        Ip_Servidor[2] = "127.0.0.1";
+        Porta_Servidor[0] = 10097;
+        Porta_Servidor[1] = 10097;
+        Porta_Servidor[2] = 10097;
 		    switch(funcao) {
 		    	case "INICIALIZA":
-            Ip_Servidor[0] = "127.0.0.1";
-            Ip_Servidor[1] = "127.0.0.1";
-            Ip_Servidor[2] = "127.0.0.1";
-            Porta_Servidor[0] = 10097;
-            Porta_Servidor[1] = 10098;
-            Porta_Servidor[2] = 10099;
 				    //obtemDadosTeclado(sc);
 		    		break;
 
@@ -103,22 +104,31 @@ public class Client {
             sendMsg.Tipo = "PUT";
             sendMsg.Key = key;
             sendMsg.Value = value;
-            Message res = enviaMensagem(sendMsg);
-            //RECEBE PUT_OK com um timestamp
 
+            res = enviaMensagem(sendMsg);
+            map.put(res.Key, res.Value);
+            ts.put(res.Key, res.ts);
+            
+            System.out.println("PUT_OK key: "+sendMsg.Key+" value "+sendMsg.Value+" timestamp "+sendMsg.ts+" realizada no servidor "+sendMsg.Ip_Destino+":"+sendMsg.Porta_Destino+"\n");
+          
 						break;
 
 		    	case "GET":
 				    System.out.println("Funcionalidade GET selecionada\nInsira a key a ser procurada:\n");
-            // ENVIA GET PRA UM SERVIDOR ALEATÓRIO
-            
+
             key = sc.nextLine();
-            // ENVIA o último timestamp que conhecemos do arquivo
             sendMsg = new Message();
             sendMsg.Tipo = "GET";
             sendMsg.Key = key;
-            //sendMsg.ts = new Timestamp(System.currentTimeMillis());
-            enviaMensagem(sendMsg);
+            if (ts.containsKey(key))
+              sendMsg.ts = ts.get(key);
+
+            res = enviaMensagem(sendMsg);
+            if(res.Value == null)
+              break;
+              
+            ts.replace(key, res.ts);
+            System.out.println("GET key: "+sendMsg.Key+" value: "+sendMsg.Value+" obtido do servidor " + sendMsg.Ip_Destino + ":" +sendMsg.Porta_Destino +", meu timestamp "+sendMsg.ts+" e do servidor "+res.ts+"\n");
 
 						break;
 		    		
