@@ -19,6 +19,7 @@ public class Client {
    private static Gson g = new Gson();
    private static Map<String, String> map = new HashMap<String, String>();
    private static Map<String, Timestamp> ts = new HashMap<String, Timestamp>();
+   private static Random rng = new Random(3141527);
    
   /**
    *
@@ -47,8 +48,8 @@ public class Client {
    * @param sc O Scanner para ler do teclado
    */
   public static Message enviaMensagem(Message msg){
-    Random rng = new Random(3141527);
-    int i = rng.nextInt(2);
+    System.out.println("Selecione uma funcionalidade:\nINIT\nPUT\nGET\n");
+    int i = rng.nextInt(3);
     try {
       Socket s = new Socket(Ip_Servidor[i], Porta_Servidor[i]);
       // Escreve pelo socket
@@ -79,7 +80,6 @@ public class Client {
       Message res;
 
 	    while(true) {
-
 		    System.out.println("Selecione uma funcionalidade:\nINIT\nPUT\nGET\n");
 		    String funcao = sc.nextLine().toUpperCase();
 		    
@@ -87,8 +87,8 @@ public class Client {
         Ip_Servidor[1] = "127.0.0.1";
         Ip_Servidor[2] = "127.0.0.1";
         Porta_Servidor[0] = 10097;
-        Porta_Servidor[1] = 10097;
-        Porta_Servidor[2] = 10097;
+        Porta_Servidor[1] = 10098;
+        Porta_Servidor[2] = 10099;
 		    switch(funcao) {
 		    	case "INICIALIZA":
 				    //obtemDadosTeclado(sc);
@@ -124,8 +124,6 @@ public class Client {
               sendMsg.ts = ts.get(key);
 
             res = enviaMensagem(sendMsg);
-            if(res.Value == null)
-              break;
               
             ts.replace(key, res.ts);
             System.out.println("GET key: "+sendMsg.Key+" value: "+sendMsg.Value+" obtido do servidor " + sendMsg.Ip_Destino + ":" +sendMsg.Porta_Destino +", meu timestamp "+sendMsg.ts+" e do servidor "+res.ts+"\n");
