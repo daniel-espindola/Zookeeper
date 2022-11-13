@@ -81,6 +81,9 @@ public class Client {
       String value;
       Message res;
 
+      map.put("teste", "TESTE DO TRY_OTHER_SERVER");
+      ts.put("teste", System.currentTimeMillis() + 1000 * 60 * 3);
+
 	    while(true) {
 		    System.out.println("Selecione uma funcionalidade:\nINIT\nPUT\nGET\n");
 		    String funcao = sc.nextLine().toUpperCase();
@@ -95,7 +98,7 @@ public class Client {
 				    System.out.println("Funcionalidade PUT selecionada\nInsira a key e value a ser inserido (key value):\n");
             key = sc.nextLine();
             value = key.split(" ")[1];
-            key = key.split(" ")[0];
+            key = key.split(" ")[0].trim();
             
             sendMsg = new Message();
             sendMsg.Tipo = "PUT";
@@ -103,19 +106,29 @@ public class Client {
             sendMsg.Value = value;
 
             res = enviaMensagem(sendMsg);
-            map.put(res.Key, res.Value);
-            ts.put(res.Key, res.ts);
+            if (res.Value != null) {
+              if (map.containsKey(key))
+                map.replace(key, res.Value);
+              else
+                map.put(key, res.Value);
+
+              if (ts.containsKey(key))
+                ts.replace(key, res.ts);
+              else
+                ts.put(key, res.ts);
+            }
 
             System.out.println("PUT_OK key: " + sendMsg.Key + " value: " + sendMsg.Value + " timestamp: " + res.ts
                 + " realizada no servidor " + res.Ip_Destino + ":" + res.Porta_Destino + "\n");
 
+            ts.put(key, res.ts);
 						break;
 
 		    	case "GET":
             // Funcionalidade (C) - Captura do teclado a key a ser procurada e envia uma mensagem GET a um servidor aleatório
 				    System.out.println("Funcionalidade GET selecionada\nInsira a key a ser procurada:\n");
 
-            key = sc.nextLine();
+            key = sc.nextLine().trim();
             sendMsg = new Message();
             sendMsg.Tipo = "GET";
             sendMsg.Key = key;

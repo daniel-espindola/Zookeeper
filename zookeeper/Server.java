@@ -206,6 +206,7 @@ public class Server {
                       + " ts:" + msg.ts + ". Meu ts é " + ts.get(msg.Key) + ", portanto devolvendo TRY_OTHER_SERVER_OR_LATER"
                       + "\n");
                       msg.Value = "TRY_OTHER_SERVER_OR_LATER";
+                      msg.ts = ts.get(msg.Key);
             }
 
             sendData = g.toJson(msg);
