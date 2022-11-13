@@ -21,6 +21,62 @@ public class Client {
    private static Map<String, Long> ts = new HashMap<String, Long>();
    private static Random rng = new Random(System.currentTimeMillis());
 
+
+   public static class ThreadPut extends Thread {
+     private Message m;
+
+     public ThreadPut(Message m) {
+       this.m = m;
+     }
+
+     public void run() {
+       Message res = enviaMensagem(m);
+       if (res.Value != null) {
+         if (map.containsKey(m.Key))
+           map.replace(m.Key, res.Value);
+         else
+           map.put(m.Key, res.Value);
+
+         if (ts.containsKey(m.Key))
+           ts.replace(m.Key, res.ts);
+         else
+           ts.put(m.Key, res.ts);
+       }
+
+       System.out.println("PUT_OK key: " + m.Key + " value: " + m.Value + " timestamp: " + res.ts
+           + " realizada no servidor " + res.Ip_Destino + ":" + res.Porta_Destino + "\n");
+
+       ts.put(m.Key, res.ts);
+     }
+    }
+
+    public static class ThreadGet extends Thread {
+      private Message m;
+
+      public ThreadGet(Message m) {
+       this.m = m;
+     }
+
+      public void run() {
+        Message res = enviaMensagem(m);
+
+        System.out.println("GET key: " + m.Key + " value: " + res.Value + " obtido do servidor " + res.Ip_Destino
+            + ":" + res.Porta_Destino + ", meu timestamp " + m.ts + " e do servidor " + res.ts + "\n");
+
+        if (res.Value != null) {
+          if (map.containsKey(m.Key))
+            map.replace(m.Key, res.Value);
+          else
+            map.put(m.Key, res.Value);
+
+          if (ts.containsKey(m.Key))
+            ts.replace(m.Key, res.ts);
+          else
+            ts.put(m.Key, res.ts);
+        }
+      }
+    }
+
   /**
    * Funcionalidade (A) do cliente
    * Captura do teclado 3 ips e portas dos servidores, sem distinção de quem é o líder
@@ -105,23 +161,9 @@ public class Client {
             sendMsg.Key = key;
             sendMsg.Value = value;
 
-            res = enviaMensagem(sendMsg);
-            if (res.Value != null) {
-              if (map.containsKey(key))
-                map.replace(key, res.Value);
-              else
-                map.put(key, res.Value);
+            Thread putThread = new ThreadPut(sendMsg);
+            putThread.run();
 
-              if (ts.containsKey(key))
-                ts.replace(key, res.ts);
-              else
-                ts.put(key, res.ts);
-            }
-
-            System.out.println("PUT_OK key: " + sendMsg.Key + " value: " + sendMsg.Value + " timestamp: " + res.ts
-                + " realizada no servidor " + res.Ip_Destino + ":" + res.Porta_Destino + "\n");
-
-            ts.put(key, res.ts);
 						break;
 
 		    	case "GET":
@@ -135,21 +177,8 @@ public class Client {
             if (ts.containsKey(key))
               sendMsg.ts = ts.get(key);
 
-            res = enviaMensagem(sendMsg);
-            
-
-            System.out.println("GET key: "+sendMsg.Key+" value: "+res.Value+" obtido do servidor " + res.Ip_Destino + ":" +res.Porta_Destino +", meu timestamp "+sendMsg.ts+" e do servidor "+res.ts+"\n");
-            if(res.Value != null) {
-              if(map.containsKey(key))
-                map.replace(key, res.Value);
-              else
-                map.put(key, res.Value);
-
-              if (ts.containsKey(key))
-                ts.replace(key, res.ts);
-              else
-                ts.put(key, res.ts);
-            }
+            Thread threadGet = new ThreadGet(sendMsg);
+            threadGet.run();
 
 						break;
 		    		
