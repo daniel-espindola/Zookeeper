@@ -24,7 +24,7 @@ public class Server {
   private static ServerSocket serverSocket;
   private static Gson g = new Gson();
   private static Map<String, String> map = new HashMap<String, String>();
-  private static Map<String, Timestamp> ts = new HashMap<String, Timestamp>();
+  private static Map<String, Long> ts = new HashMap<String, Long>();
 
   public static boolean souLider() {
     return Ip_Servidor.equals(Ip_Lider) && Porta_Servidor == Porta_Lider;
@@ -45,7 +45,6 @@ public class Server {
       writer.writeBytes(sendData + "\n");
 
       String response = reader.readLine();
-      s.close();
       return g.fromJson(response, Message.class);
 
     } catch (Exception e) {
@@ -54,6 +53,15 @@ public class Server {
     return null;
   }
 
+  public static String removeCaracteresFim(String s, int c) {
+    return s.substring(0, s.length() - c);
+  }
+
+  /**
+   * Funcionalidade (B) do servidor
+   * Essa thread é inicializada toda vez que o servidor recebe um request
+   * permitindo que multiplos requests sejam tratados ao mesmo tempo
+   */
   public static class ThreadAtendimento extends Thread {
     private Socket s;
     public ThreadAtendimento(Socket no) {
@@ -78,12 +86,18 @@ public class Server {
         Message res;
         
         switch(msg.Tipo) {
+          /**
+           * Funcionalidade (C) do servidor
+           * Lida com as requisições do tipo PUT
+           * inserindo e replicando a informação caso seja o líder
+           * ou encaminhando para o líder caso contrário
+           */
           case "PUT":
             if(souLider()) {
-              System.out.println("Cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " PUT key:" + msg.Key
+              System.out.println("Cliente " + msg.Ip_Requisitante + ":" + msg.Porta_Requisitante + " PUT key:" + msg.Key
                   + " value:" + msg.Value);
                   
-              Timestamp tsAtual = new Timestamp(System.currentTimeMillis());
+              Long tsAtual = System.currentTimeMillis();
               if (map.containsKey(msg.Key) == false) {
                 map.put(msg.Key, msg.Value);
                 ts.put(msg.Key, tsAtual);
@@ -99,21 +113,22 @@ public class Server {
               msgReplication.Key = msg.Key;
               msgReplication.Value = msg.Value;
               msgReplication.ts = tsAtual;
-              System.out.println("enviando replication 1");
+              
               Message resReplication1 = enviaMensagem(msgReplication);
 
               msgReplication.Ip_Destino = Ip_Server_3;
               msgReplication.Porta_Destino = Porta_Server_3;
               
-              System.out.println("enviando replication 2");
               Message resReplication2 = enviaMensagem(msgReplication);
               
-              System.out.println("" +resReplication1+resReplication2);
+              /**
+               * Recebe o REPLICATION_OK dos demais servidores e caso esteja tudo válido envia o PUT_OK de volta para o cliente
+               */
               if (resReplication1.Tipo.equals("REPLICATION_OK") && resReplication2.Tipo.equals("REPLICATION_OK")) {
                 System.out.println(
-                    "Enviando PUT_OK ao cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " da key:"
+                    "Enviando PUT_OK ao cliente " + msg.Ip_Requisitante + ":" + msg.Porta_Requisitante + " da key:"
                         + msg.Key
-                        + " ts:" + msg.ts);
+                        + " ts:" + tsAtual);
               } else {
                 System.out.println(
                     "Erro no replication " + resReplication1 + resReplication2);
@@ -137,8 +152,12 @@ public class Server {
 
           break;
 
+        /**
+         * Funcionalidade (D) do servidor
+         * Recebe uma requisição replication e insere o valor e timestamp, retornando um REPLICATION_OK
+         */
           case "REPLICATION":
-            System.out.println("REPLICATION key:" + msg.Key + " value:" + msg.Value + " ts:"+msg.ts);
+            System.out.println("REPLICATION key:" + msg.Key + " value:" + msg.Value + " ts:" + msg.ts);
             if (map.containsKey(msg.Key) == false) {
               map.put(msg.Key, msg.Value);
               ts.put(msg.Key, msg.ts);
@@ -152,12 +171,20 @@ public class Server {
             writer.writeBytes(sendData + "\n");
           break;
 
+          /**
+         * Funcionalidade (F) do servidor
+         * Recebe a requisição GET de um cliente e retorna um value null caso não encontre a key, 
+         * TRY_OTHER_SERVER_OR_LATER caso o ts do cliente seja superior ao do servidor 
+         * ou o value e timestamp que estava salvo nesse servidor, caso encontre a key.
+         */
           case "GET":
+            msg.Ip_Destino = Ip_Servidor;
+            msg.Porta_Destino = Porta_Servidor;
             if(map.containsKey(msg.Key) == false) {
               
               System.out
                   .println("Cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " GET da key:" + msg.Key
-                      + " ts:" + msg.ts + ". Meu ts é null portanto devolvendo null");
+                      + " ts:" + msg.ts + ". Meu ts é null portanto devolvendo null\n");
                     
               msg.Value = null;
               sendData = g.toJson(msg);
@@ -166,16 +193,18 @@ public class Server {
               break;
             }
 
-            if(msg.ts == null || ts.get(msg.Key).compareTo(msg.ts) > 0) {
+            if(msg.ts == null || ts.get(msg.Key) >= msg.ts) {
               msg.Value = map.get(msg.Key);
-              msg.ts = ts.get(msg.Key);
               System.out
                   .println("Cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " GET da key:" + msg.Key
-                      + " ts:" + msg.ts + ". Meu ts é " + ts.get(msg.Key) + ", portanto devolvendo " + msg.Value);
+                      + " ts:" + msg.ts + ". Meu ts é " + ts.get(msg.Key) + ", portanto devolvendo " + msg.Value+"\n");
+              
+              msg.ts = ts.get(msg.Key);
             } else {
               System.out
                   .println("Cliente " + s.getInetAddress().toString() + ":" + s.getPort() + " GET da key:" + msg.Key
-                      + " ts:" + msg.ts + ". Meu ts é " + ts.get(msg.Key) + ", portanto devolvendo TRY_OTHER_SERVER_OR_LATER");
+                      + " ts:" + msg.ts + ". Meu ts é " + ts.get(msg.Key) + ", portanto devolvendo TRY_OTHER_SERVER_OR_LATER"
+                      + "\n");
                       msg.Value = "TRY_OTHER_SERVER_OR_LATER";
             }
 
@@ -197,6 +226,11 @@ public class Server {
   public static void main(String[] args) throws Exception {
     Scanner sc = new Scanner(System.in);
     
+    /**
+     * Funcionalidade (A) do servidor
+     * Recebe o ip e porta desse servidor e do servidor líder
+     * os demais servidores são os que sobraram das portas padrão
+     */
     System.out.println("Por favor insira o ip:porta desse servidor\n");
     String ipPorta = sc.nextLine();
     
