@@ -21,7 +21,9 @@ public class Client {
    private static Map<String, Long> ts = new HashMap<String, Long>();
    private static Random rng = new Random(System.currentTimeMillis());
 
-
+  /*ThreadPut é utilizada para enviarmos assincronamente o PUT para os servidores
+   * De modo que não seja necessário aguardar toda a sincronização para poder executar outras funcionalidades do client
+   */
    public static class ThreadPut extends Thread {
      private Message m;
 
@@ -50,6 +52,10 @@ public class Client {
      }
     }
 
+    /*
+     * ThreadGet é utilizada para enviarmos assincronamente o GET para os servidores
+     * Assim, podendo executar outros requisições enquanto aguardamos o retorno
+     */
     public static class ThreadGet extends Thread {
       private Message m;
 
@@ -102,7 +108,7 @@ public class Client {
 
   /**
    * Recebe uma mensagem, sorteia um dos 3 servidores inseridos pelo cliente e envia a mensagem pra eles
-   * @param msg A Memssagem a ser enviada
+   * @param msg A Mensagem a ser enviada
    * @return a Mensagem de resposta recebida do servidor
    */
   public static Message enviaMensagem(Message msg){

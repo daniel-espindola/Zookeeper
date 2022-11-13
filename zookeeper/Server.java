@@ -30,6 +30,12 @@ public class Server {
     return Ip_Servidor.equals(Ip_Lider) && Porta_Servidor == Porta_Lider;
   }
 
+  /**
+   * Recebe uma mensagem, e envia ela para o ip e porta destino específicados.
+   * 
+   * @param msg A Mensagem a ser enviada
+   * @return a Mensagem de resposta recebida
+   */
   public static Message enviaMensagem(Message msg) {
     try {
       Socket s = new Socket(msg.Ip_Destino, msg.Porta_Destino);
@@ -51,10 +57,6 @@ public class Server {
     }
 
     return null;
-  }
-
-  public static String removeCaracteresFim(String s, int c) {
-    return s.substring(0, s.length() - c);
   }
 
   /**
@@ -187,6 +189,7 @@ public class Server {
                       + " ts:" + msg.ts + ". Meu ts é null portanto devolvendo null\n");
                     
               msg.Value = null;
+              msg.ts = null;
               sendData = g.toJson(msg);
               writer.writeBytes(sendData + "\n");
               
@@ -213,9 +216,6 @@ public class Server {
             writer.writeBytes(sendData + "\n");
           break;
         }
-
-        writer.writeBytes("response" +"\n");
-
         s.close();
 
       } catch (Exception e) {
